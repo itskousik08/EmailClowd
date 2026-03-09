@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EmailClowd AI</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+    <style>
+        /* Custom Scrollbar for dark theme */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111827; }
+        ::-webkit-scrollbar-thumb { background: #7c3aed; border-radius: 4px; }
+    </style>
+</head>
+<body class="bg-gray-950 text-white min-h-screen flex flex-col font-sans">
+
+    <!-- Navbar -->
+    <header class="bg-gray-900 border-b border-purple-600 p-4 shadow-lg shadow-purple-900/20 flex justify-between items-center">
+        <h1 class="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500">EmailClowd</h1>
+        <div class="text-sm text-gray-400 text-right">
+            <p>Model: <span class="text-purple-400">{{ model }}</span></p>
+            <p>User: <span class="text-purple-400">{{ email }}</span></p>
+        </div>
+    </header>
+
+    <!-- Chat/Task Window -->
+    <main id="chat-box" class="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 flex flex-col w-full max-w-4xl mx-auto">
+        <!-- AI Welcome Message -->
+        <div class="bg-gray-800 p-4 rounded-xl max-w-[85%] self-start border-l-4 border-purple-500 shadow-md">
+            <p class="text-gray-200">Hello! I am connected to <b>{{ model }}</b> locally. What task should I do today?</p>
+            <p class="text-xs text-gray-400 mt-2">Try: "Write a professional email to hr@company.com for leave" or "Summarize my today's emails".</p>
+        </div>
+    </main>
+
+    <!-- Input Area -->
+    <footer class="bg-gray-900 p-4 border-t border-gray-800">
+        <div class="max-w-4xl mx-auto flex gap-2">
+            <input type="text" id="task-input" 
+                class="flex-1 bg-gray-800 text-white placeholder-gray-400 border border-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all" 
+                placeholder="Give a task to EmailClowd...">
+            <button onclick="sendTask()" 
+                class="bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-lg font-semibold transition-all shadow-lg shadow-purple-600/30">
+                Send
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        const socket = io();
+        const chatBox = document.getElementById('chat-box');
+        const taskInput = document.getElementById('task-input');
+
+        // Allow 'Enter' key to send message
+        taskInput.addEventListener("keypress", function(event) {
+            if (event.key === "Enter") {
+                event.preventDefault();
+                sendTask();
+            }
+        });
+
+        function sendTask() {
+            const task = taskInput.value.trim();
+            if (!task) return;
+
+            // Add User message to UI
+            appendMessage('user', task);
+            taskInput.value = '';
+
+            // Send to Backend
+            socket.emit('send_task', { task: task });
+        }
+
+        socket.on('ai_reply', function(data) {
+            // Remove previous "Working on it..." message if exists
+            const tempMsg = document.getElementById('temp-loading');
+            if (tempMsg) tempMsg.remove();
+
+            appendMessage('ai', data.text, data.text.includes('⏳'));
+        });
+
+        function appendMessage(sender, text, isLoading = false) {
+            const div = document.createElement('div');
+            div.className = `p-4 rounded-xl max-w-[85%] shadow-md whitespace-pre-wrap ${
+                sender === 'user' 
+                ? 'bg-purple-700 self-end text-white' 
+                : 'bg-gray-800 self-start border-l-4 border-purple-500 text-gray-200'
+            }`;
+            if (isLoading) div.id = 'temp-loading';
+            div.innerHTML = text;
+            chatBox.appendChild(div);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+    </script>
+</body>
+</html>
